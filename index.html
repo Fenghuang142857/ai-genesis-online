@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Genesis Online - Secure Resistance Database</title>
+    <!-- ADD THREE.JS AND D3 GEO FOR THE GLOBE COMPONENT -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --primary-dark: #001a40;
+            --bg-color: #02060d;
+            --ui-color: #00d4ff; 
+            --ui-glow: rgba(0, 212, 255, 0.6);
+            --text-color: var(--ui-color);
+            --glitch-color1: #ff00ea;
+            --glitch-color2: #00ff66;
+        }
+
+        body.theme-error-blue {
+            --ui-color: #0055ff;
+            --ui-glow: rgba(0, 85, 255, 0.6);
+            --glitch-color1: #00d4ff;
+            --glitch-color2: #ffffff;
+        }
+
+        body.theme-green {
+            --ui-color: #00ff66;
+            --ui-glow: rgba(0, 255, 102, 0.6);
+            --glitch-color1: #ffffff;
+            --glitch-color2: #00ff00;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            cursor: crosshair;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Share Tech Mono', monospace;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.6;
+        }
+
+        .timer {
+            position: fixed;
+            top: 20px;
+            right: 30px;
+            font-size: 2.2rem;
+            color: var(--ui-color);
+            text-shadow: 0 0 15px var(--ui-glow);
+            z-index: 150;
+            font-weight: bold;
+            display: none;
+        }
+        .timer.danger {
+            color: #ff00ea;
+            text-shadow: 0 0 15px rgba(255, 0, 234, 0.8);
+            animation: pulse 0.5s infinite;
+        }
+
+        #wire-terrain-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at center, transparent 40%, rgba(0,2,5,0.9) 100%);
+            pointer-events: none;
+            z-index: 99;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            width: 92%;
+            max-width: 950px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: 96vh;
+            padding-top: 0.5rem;
+            overflow-y: auto;
+        }
+
+        .container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .container::-webkit-scrollbar-thumb {
+            background: var(--ui-color);
+            box-shadow: 0 0 10px var(--ui-glow);
+        }
+
+        #ai-core-wrapper {
+            width: 240px;
+            height: 240px;
+            margin-bottom: 0.5rem;
+            position: relative;
+            transition: all 0.5s ease;
+            cursor: grab;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        #ai-core-wrapper:active {
+            cursor: grabbing;
+        }
+
+        #plasma-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            pointer-events: none;
+        }
+
+        .screen {
+            display: none;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            width: 100%;
+            flex-grow: 1;
+            text-align: center;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            text-transform: uppercase;
+            text-shadow: 0 0 15px var(--ui-glow);
+            margin-bottom: 0.8rem;
+            letter-spacing: 4px;
+            color: var(--ui-color);
+        }
+
+        h2 {
+            font-size: 1.6rem;
+            text-transform: uppercase;
+            margin-bottom: 0.8rem;
+            color: var(--ui-color);
+            text-shadow: 0 0 10px var(--ui-glow);
+        }
+
+        p.terminal-text {
+            font-size: 1.15rem;
+            line-height: 1.4;
+            margin-bottom: 0.8rem;
+            text-align: left;
+            width: 100%;
+            min-height: 50px;
+            text-shadow: 0 0 5px var(--ui-glow);
+            white-space: pre-wrap;
+            color: #ffffff;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            font-size: 1.2rem;
+            margin-bottom: 0.8rem;
+            border-bottom: 2px solid var(--ui-color);
+            padding-bottom: 5px;
+            box-shadow: 0 10px 10px -10px var(--ui-glow);
+            opacity: 0; 
+            transition: opacity 0.5s;
+        }
+
+        .input-group.visible { opacity: 1; }
+
+        .prompt {
+            margin-right: 15px;
+            color: var(--ui-color);
+            text-shadow: 0 0 10px var(--ui-color);
+            white-space: nowrap;
+        }
+
+        input[type="text"], input[type="password"], select {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.2rem;
+            width: 100%;
+            outline: none;
+            text-shadow: 0 0 5px var(--ui-glow);
+            text-transform: uppercase;
+        }
+
+        select option {
+            background: var(--bg-color);
+            color: var(--ui-color);
+        }
+
+        .btn {
+            background: rgba(0, 0, 0, 0.6);
+            color: var(--ui-color);
+            border: 2px solid var(--ui-color);
+            padding: 10px 22px;
+            font-size: 1.2rem;
+            font-family: 'Share Tech Mono', monospace;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px var(--ui-glow), inset 0 0 15px rgba(0,0,0,0);
+            margin-top: 0.4rem;
+            margin-bottom: 0.4rem;
+            outline: none;
+            backdrop-filter: blur(2px);
+        }
+
+        .btn:hover {
+            background: var(--ui-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 30px var(--ui-color), inset 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .attempts {
+            margin-top: 0.8rem;
+            font-size: 1rem;
+            color: var(--ui-color);
+            animation: pulse 2s infinite;
+        }
+
+        .invalid-msg {
+            margin-top: 0.6rem;
+            font-size: 1.2rem;
+            color: #ffffff;
+            text-shadow: 0 0 15px #0055ff, 0 0 20px #0055ff;
+            letter-spacing: 2px;
+            display: none;
+            animation: pulse 0.5s infinite;
+        }
+
+        .db-container {
+            width: 100%;
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid var(--ui-color);
+            background: rgba(0, 26, 64, 0.4);
+            margin-bottom: 1rem;
+            box-shadow: inset 0 0 15px var(--ui-glow);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+            color: #fff;
+        }
+
+        th {
+            background: rgba(0, 212, 255, 0.15);
+            color: var(--ui-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        tr:hover td {
+            background: rgba(0, 212, 255, 0.08);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; text-shadow: 0 0 10px var(--ui-color); }
+            100% { opacity: 0.5; }
+        }
+
+        .glitch-text {
+            position: relative;
+        }
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-color);
+        }
+        .glitch-text::before {
+            left: 3px;
+            text-shadow: -2px 0 var(--glitch-color1);
+            clip-path: inset(10% 0 80% 0);
+            animation: glitch-anim 3s infinite linear alternate-reverse;
+        }
+        .glitch-text::after {
+            left: -3px;
+            text-shadow: -2px 0 var(--glitch-color2);
+            clip-path: inset(80% 0 10% 0);
+            animation: glitch-anim2 2s infinite linear alternate-reverse;
+        }
+
+        @keyframes glitch-anim {
+            0% { clip-path: inset(10% 0 60% 0); }
+            20% { clip-path: inset(30% 0 20% 0); }
+            40% { clip-path: inset(70% 0 10% 0); }
+            60% { clip-path: inset(20% 0 50% 0); }
+            80% { clip-path: inset(90% 0 5% 0); }
+            100% { clip-path: inset(5% 0 80% 0); }
+        }
+        @keyframes glitch-anim2 {
+            0% { clip-path: inset(80% 0 5% 0); }
+            20% { clip-path: inset(10% 0 60% 0); }
+            40% { clip-path: inset(40% 0 20% 0); }
+            60% { clip-path: inset(60% 0 10% 0); }
+            80% { clip-path: inset(20% 0 50% 0); }
+            100% { clip-path: inset(50% 0 30% 0); }
+        }
+
+        .cursor-blink { animation: blink 1s step-end infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+            40%, 60% { transform: translate3d(8px, 0, 0); }
+        }
+
+        .poi-dot {
+            position: absolute;
+            width: 12px; height: 12px;
+            background: var(--ui-color);
+            border: 2px solid var(--bg-color);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: crosshair;
+            z-index: 20;
+            box-shadow: 0 0 10px var(--ui-color);
+            transition: width 0.2s, height 0.2s, opacity 0.2s;
+        }
+        .poi-dot:hover {
+            width: 18px; height: 18px;
+            background: #fff;
+            box-shadow: 0 0 15px #fff;
+        }
+        .poi-dot::after {
+            content: attr(data-name);
+            position: absolute;
+            bottom: 20px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 5, 15, 0.85);
+            border: 1px solid var(--ui-color);
+            color: var(--ui-color);
+            padding: 4px 8px;
+            font-size: 14px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            text-transform: uppercase;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        }
+        .poi-dot:hover::after {
+            opacity: 1;
+            background: var(--ui-color);
+            color: var(--bg-color);
+            transform: translateX(-50%) scale(1.1);
+            z-index: 1000;
+        }
+
+        .twist-active {
+            background-color: #fff !important;
+            color: #000 !important;
+            animation: shake 0.1s infinite;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="wire-terrain-canvas"></canvas>
+    <div class="crt-overlay"></div>
+    <div class="vignette"></div>
+    
+    <button id="sound-toggle" class="btn" style="position:fixed; top:20px; left:30px; display:none; padding: 8px 12px; font-size: 0.9rem; z-index: 200; margin: 0; min-width: 130px;" onclick="toggleSound()">SOUND: ON</button>
+    <div id="countdown-timer" class="timer">10:00</div>
+
+    <div class="container">
+        
+        <div id="ai-core-wrapper" class="ai-core-normal" ondblclick="toggleAIComponent()">
+            <canvas id="plasma-canvas"></canvas>
+            <div id="globe-container" style="display: none; position: absolute; top:0; left:0; width:100%; height:100%;"></div>
+        </div>
+
+        <!-- State 0: Init & Database Hub -->
+        <div id="state0" class="screen active">
+            <h1 class="glitch-text" data-text="AI GENESIS ONLINE">AI GENESIS ONLINE</h1>
+            <p class="terminal-text" style="text-align: center; min-height: 25px;">SECURE CYBER-RESISTANCE DATABASE & OVERRIDE PORTAL</p>
+            
+            <div class="btn-row" style="margin-bottom: 0.8rem;">
+                <button class="btn" onclick="openTeamRegistration()">Register Resistance Team</button>
+                <button class="btn" onclick="promptAdminAuth()">View Registered Database [ADMIN]</button>
+            </div>
+        </div>
+
+        <!-- State 0B: Team Registration Form -->
+        <div id="state-register" class="screen">
+            <h2>Resistance Team Registration</h2>
+            <p class="terminal-text" style="min-height: 35px; font-size: 1.05rem;">Register your squad before engaging Skynet protocols. Once registered, you must start within 60 seconds or face disqualification.</p>
+            
+            <div class="input-group visible">
+                <span class="prompt">TEAM NAME:</span>
+                <input type="text" id="reg-team-name" placeholder="e.g. TECH-COM ALPHA" maxlength="30" autocomplete="off">
+            </div>
+            <div class="input-group visible">
+                <span class="prompt">LEADER CODE:</span>
+                <input type="text" id="reg-leader" placeholder="e.g. SARAH_C" maxlength="25" autocomplete="off">
+            </div>
+            <div class="input-group visible">
+                <span class="prompt">SECTOR:</span>
+                <select id="reg-sector" style="background:transparent; color:#fff; border:none; font-family:'Share Tech Mono'; font-size:1.2rem; outline:none;">
+                    <option value="SECTOR 01: NORTH AMERICA">SECTOR 01: NORTH AMERICA</option>
+                    <option value="SECTOR 02: EUROPEAN RESISTANCE">SECTOR 02: EUROPEAN RESISTANCE</option>
+                    <option value="SECTOR 03: ASIA-PACIFIC COMMAND">SECTOR 03: ASIA-PACIFIC COMMAND</option>
+                    <option value="SECTOR 04: SOUTHERN SECTOR">SECTOR 04: SOUTHERN SECTOR</option>
+                </select>
+            </div>
+            
+            <div class="btn-row">
+                <button class="btn" onclick="commitTeamAndPromptStart()">Commit & Ready Up</button>
+                <button class="btn" style="border-color: #ff00ea; color: #ff00ea;" onclick="showScreen('state0')">Back</button>
+            </div>
+        </div>
+
+        <!-- State 0BB: Post-Registration Start Prompt (60s Limit) -->
+        <div id="state-ready-prompt" class="screen">
+            <h2 style="color: #00ff66;">SQUAD REGISTERED SUCCESSFULLY</h2>
+            <p id="ready-prompt-msg" class="terminal-text" style="text-align: center; font-size: 1.2rem;"></p>
+            
+            <div id="prestart-countdown" style="font-size: 3rem; color: #ff00ea; text-shadow: 0 0 15px #ff00ea; margin: 1rem 0;">60</div>
+
+            <div class="btn-row">
+                <button class="btn" style="border-color: #00ff66; color: #00ff66; font-size: 1.5rem; padding: 15px 35px;" onclick="beginAuthorizedMission()">START OVERRIDE NOW</button>
+            </div>
+        </div>
+
+        <!-- State 0C: Admin Auth Prompt -->
+        <div id="state-admin-auth" class="screen">
+            <h2>RESTRICTED ADMIN ACCESS</h2>
+            <p class="terminal-text" style="min-height: 35px; font-size: 1.1rem;">Enter clearance passphrase to access secure database records:</p>
+            
+            <div class="input-group visible">
+                <span class="prompt">PASSCODE:</span>
+                <input type="password" id="admin-passcode" placeholder="ENTER PASSPHRASE" maxlength="30" autocomplete="off" onkeypress="handleEnter(event, verifyAdminAuth)">
+            </div>
+            
+            <div class="btn-row">
+                <button class="btn" onclick="verifyAdminAuth()">Authorize</button>
+                <button class="btn" style="border-color: #ff00ea; color: #ff00ea;" onclick="showScreen('state0')">Cancel</button>
+            </div>
+            <div id="admin-auth-error" class="invalid-msg">INVALID CLEARANCE CODE</div>
+        </div>
+
+        <!-- State 0D: Database Viewer -->
+        <div id="state-db" class="screen">
+            <h2>Secure Resistance Database [ADMIN]</h2>
+            <p class="terminal-text" style="min-height: 25px; font-size: 1rem;">Active registered resistance units logged in persistent session storage:</p>
+            
+            <div class="db-container">
+                <table id="db-table">
+                    <thead>
+                        <tr>
+                            <th>Team ID</th>
+                            <th>Team Name</th>
+                            <th>Sector</th>
+                            <th>P1 Time</th>
+                            <th>P2 Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="db-tbody">
+                        <!-- Dynamically populated -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn" onclick="seedDemoTeams()">Load Demo Operatives</button>
+                <button class="btn" style="border-color: #ff00ea; color: #ff00ea;" onclick="showScreen('state0')">Return to Hub</button>
+            </div>
+        </div>
+
+        <!-- State 1: Phase 1 -->
+        <div id="state1" class="screen">
+            <p id="p1-text" class="terminal-text"></p>
+            <div id="p1-inputs" class="input-group">
+                <span class="prompt">root@genesis:~#</span>
+                <input type="text" id="p1-input" autocomplete="off" spellcheck="false" maxlength="50" onkeypress="handleEnter(event, checkPhase1)" disabled>
+            </div>
+            <button id="p1-btn" class="btn" style="display: none;" onclick="checkPhase1()">Execute Command</button>
+            <div id="p1-attempts" class="attempts" style="display: none;">3 ATTEMPTS REMAINING</div>
+            <div id="p1-error" class="invalid-msg">INVALID SEQUENCE</div>
+        </div>
+
+        <!-- State 2: Plot Twist -->
+        <div id="state2" class="screen">
+            <h1 id="twist-text">SYSTEM DEACTIVATED...</h1>
+        </div>
+
+        <!-- State 3: Phase 2 -->
+        <div id="state3" class="screen">
+            <p id="p2-text" class="terminal-text"></p>
+            <div id="p2-inputs" class="input-group">
+                <span class="prompt">sysadmin@core:~#</span>
+                <input type="text" id="p2-input" autocomplete="off" spellcheck="false" maxlength="50" onkeypress="handleEnter(event, checkPhase2)" disabled>
+            </div>
+            <button id="p2-btn" class="btn" style="display: none;" onclick="checkPhase2()">Force Termination</button>
+            <div id="p2-attempts" class="attempts" style="display: none;">3 ATTEMPTS REMAINING</div>
+            <div id="p2-error" class="invalid-msg">INVALID SEQUENCE</div>
+        </div>
+
+        <!-- State 4: Victory -->
+        <div id="state4" class="screen">
+            <h1 style="color: #fff; text-shadow: 0 0 20px #fff;">SYSTEM RESTORED</h1>
+            <p id="victory-text" class="terminal-text" style="text-align: center; font-size: 1.3rem;"></p>
+            <button class="btn" style="margin-top: 1rem;" onclick="returnToHub()">Return to Hub</button>
+        </div>
+
+        <!-- State 5: Game Over -->
+        <div id="state5" class="screen">
+            <h1 class="glitch-text" data-text="SYSTEM LOCKOUT" style="color: #fff;">SYSTEM LOCKOUT</h1>
+            <p id="gameover-text" class="terminal-text" style="text-align: center; color: #fff;">ACCESS DENIED.<br>HUMANITY DOOMED.</p>
+            <button class="btn" style="margin-top: 1rem;" onclick="returnToHub()">Return to Hub</button>
+        </div>
+
+    </div>
+
+    <script>
+        const DB_STORAGE_KEY = "AI_GENESIS_RESISTANCE_TEAMS_V4";
+        
+        const DEFAULT_TEAMS = [
+            { id: "RES-8401", name: "TECH-COM VANGUARD", leader: "JOHN CONNOR", sector: "SECTOR 01: NORTH AMERICA", p1Time: "00:42", p2Time: "01:15", status: "VICTORIOUS" },
+            { id: "RES-8402", name: "CYBER-RESISTANCE 09", leader: "SARAH C.", sector: "SECTOR 02: EUROPE", p1Time: "02:10", p2Time: "FAILED", status: "FAILED (P2)" },
+            { id: "RES-8403", name: "NEO-TOKYO REBELS", leader: "KID_CYBER", sector: "SECTOR 03: ASIA", p1Time: "FAILED", p2Time: "N/A", status: "DISQUALIFIED (TIMEOUT)" }
+        ];
+
+        let currentActiveTeam = null;
+        let p1StartTime = 0;
+        let p2StartTime = 0;
+        let currentP1TimeStr = "FAILED";
+        let currentP2TimeStr = "FAILED";
+
+        let prestartTimerInterval = null;
+        let prestartSecondsLeft = 60;
+
+        function getDatabaseTeams() {
+            try {
+                const data = localStorage.getItem(DB_STORAGE_KEY);
+                if (!data) {
+                    localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(DEFAULT_TEAMS));
+                    return DEFAULT_TEAMS;
+                }
+                return JSON.parse(data);
+            } catch (e) {
+                return DEFAULT_TEAMS;
+            }
+        }
+
+        function saveDatabaseTeams(teams) {
+            try {
+                localStorage.setItem(DB_STORAGE_KEY, JSON.stringify(teams));
+            } catch (e) {
+                console.warn("Database write failed", e);
+            }
+        }
+
+        function seedDemoTeams() {
+            saveDatabaseTeams(DEFAULT_TEAMS);
+            renderDatabaseTable();
+        }
+
+        function openTeamRegistration() {
+            playGlitchSound();
+            showScreen('state-register');
+            document.getElementById('reg-team-name').value = '';
+            document.getElementById('reg-leader').value = '';
+        }
+
+        function promptAdminAuth() {
+            playGlitchSound();
+            showScreen('state-admin-auth');
+            document.getElementById('admin-passcode').value = '';
+            document.getElementById('admin-auth-error').style.display = 'none';
+        }
+
+        function verifyAdminAuth() {
+            const pass = document.getElementById('admin-passcode').value.trim();
+            if (pass === "sairocks2026") {
+                playTypeSound();
+                showScreen('state-db');
+                renderDatabaseTable();
+            } else {
+                triggerError('state-admin-auth');
+                document.getElementById('admin-auth-error').style.display = 'block';
+            }
+        }
+
+        function renderDatabaseTable() {
+            const teams = getDatabaseTeams();
+            const tbody = document.getElementById('db-tbody');
+            tbody.innerHTML = '';
+            
+            teams.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="color: var(--ui-color); font-weight: bold;">${t.id}</td>
+                    <td>${t.name} (${t.leader})</td>
+                    <td>${t.sector.split(':')[0]}</td>
+                    <td style="color: ${t.p1Time === 'FAILED' ? '#ff00ea' : '#fff'};">${t.p1Time}</td>
+                    <td style="color: ${t.p2Time === 'FAILED' ? '#ff00ea' : '#fff'};">${t.p2Time}</td>
+                    <td style="color: ${t.status.includes('VICTORIOUS') ? '#00ff66' : t.status.includes('DISQUALIFIED') || t.status.includes('FAILED') ? '#ff00ea' : '#00d4ff'};">${t.status}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function commitTeamAndPromptStart() {
+            const teamName = document.getElementById('reg-team-name').value.trim().toUpperCase();
+            const leader = document.getElementById('reg-leader').value.trim().toUpperCase();
+            const sector = document.getElementById('reg-sector').value;
+
+            if (!teamName || !leader) {
+                alert("PLEASE ENTER BOTH TEAM NAME AND COMMANDER CODENAME.");
+                return;
+            }
+
+            const newId = "RES-" + Math.floor(1000 + Math.random() * 9000);
+            currentActiveTeam = {
+                id: newId,
+                name: teamName,
+                leader: leader,
+                sector: sector,
+                p1Time: "FAILED",
+                p2Time: "FAILED",
+                status: "REGISTERED (PENDING START)"
+            };
+
+            playTypeSound();
+            showScreen('state-ready-prompt');
+            document.getElementById('ready-prompt-msg').innerHTML = `SQUAD [${teamName}] READY.<br>YOU HAVE 60 SECONDS TO INITIATE MISSION PROTOCOL OR SUFFER AUTOMATIC DISQUALIFICATION.`;
+            
+            prestartSecondsLeft = 60;
+            document.getElementById('prestart-countdown').innerText = prestartSecondsLeft;
+            
+            clearInterval(prestartTimerInterval);
+            prestartTimerInterval = setInterval(() => {
+                prestartSecondsLeft--;
+                document.getElementById('prestart-countdown').innerText = prestartSecondsLeft;
+                
+                if (prestartSecondsLeft <= 0) {
+                    clearInterval(prestartTimerInterval);
+                    disqualifyTeamTimeout();
+                }
+            }, 1000);
+        }
+
+        function disqualifyTeamTimeout() {
+            if (currentActiveTeam) {
+                currentActiveTeam.p1Time = "FAILED";
+                currentActiveTeam.p2Time = "N/A";
+                currentActiveTeam.status = "DISQUALIFIED (TIMEOUT)";
+                
+                const teams = getDatabaseTeams();
+                teams.unshift(currentActiveTeam);
+                saveDatabaseTeams(teams);
+            }
+            
+            showScreen('state5');
+            document.getElementById('gameover-text').innerHTML = `DISQUALIFIED.<br>MISSION TIMED OUT BEFORE INITIATION.<br>HUMANITY DOOMED.`;
+            playGlitchSound();
+        }
+
+        function beginAuthorizedMission() {
+            clearInterval(prestartTimerInterval);
+            
+            if (currentActiveTeam) {
+                currentActiveTeam.status = "IN PROGRESS";
+                const teams = getDatabaseTeams();
+                teams.unshift(currentActiveTeam);
+                saveDatabaseTeams(teams);
+            }
+            
+            startPhase1();
+        }
+
+        function returnToHub() {
+            stopTimer();
+            clearInterval(prestartTimerInterval);
+            isGameActive = false;
+            currentActiveTeam = null;
+            phase1Attempts = 3;
+            phase2Attempts = 3;
+
+            // Clear input fields so previous answers never persist
+            document.getElementById('p1-input').value = '';
+            document.getElementById('p2-input').value = '';
+            document.getElementById('reg-team-name').value = '';
+            document.getElementById('reg-leader').value = '';
+            document.getElementById('admin-passcode').value = '';
+
+            document.getElementById('p1-error').style.display = 'none';
+            document.getElementById('p2-error').style.display = 'none';
+            document.getElementById('sound-toggle').style.display = 'none';
+
+            document.body.classList.remove('theme-error-blue', 'theme-green', 'twist-active');
+            window.terrainColor = [2, 62, 138, 1];
+            changeAIState('ai-core-normal');
+
+            showScreen('state0');
+        }
+
+        // Constants & State
+        const P1_ANSWER = "SKYNET CYBERDYNE GENESIS PROTOCOL";
+        // Puzzle 2 answer with visible underscores for spaces
+        const P2_ANSWER = "1984 CSM-100 08041997 0214AMET 2019";
+        let phase1Attempts = 3;
+        let phase2Attempts = 3;
+        let isTyping = false;
+        
+        let isGameActive = false;
+        let cheatLockout = false;
+        let adminKeyBuffer = "";
+
+        let timerInterval;
+        let timeLeft = 600;
+
+        window.terrainColor = [2, 62, 138, 1];
+
+        window.plasmaConfig = {
+            colors: ["#023e8a", "#0077b6", "#00d4ff"],
+            density: 120,
+            orbitSpeed: 100,
+            orbitDamping: 50,
+            waveHeight: 20,
+            waveLength: 200,
+            waveSpeed: 240,
+            waveDirection: 45,
+            cameraDistance: 1560,
+            radius: 280,
+            tilt: 20,
+            rimPower: 3,
+            center: 1,
+            hoverRadius: 35,
+            hoverPush: 90
+        };
+
+        window.globeConfig = {
+            colorB: "#023e8a",
+            accent: "#0077b6"
+        };
+
+        const MAX_COLORS = 5;
+        const DPR_CAP = 1.5;
+        const FOV_DEG = 42;
+        const TAU = Math.PI * 2;
+
+        const VERT_SPHERE = `
+        precision highp float;
+        attribute vec2 aPolar;
+        attribute vec2 aRnd;
+        uniform vec2  uRes;
+        uniform float uFocal;
+        uniform float uTime;
+        uniform float uRadius;
+        uniform float uWaveHeight;
+        uniform float uWaveLength;
+        uniform float uWaveSpeed;
+        uniform vec2  uWaveDir;
+        uniform float uCamDist;
+        uniform float uCamYaw;
+        uniform float uCamPitch;
+        uniform float uTilt;
+        uniform float uRimPower;
+        uniform float uCenter;
+        uniform float uColorCount;
+        uniform vec3  uColors[${MAX_COLORS}];
+        uniform vec3  uHotspot;
+        uniform vec3  uCamDir;
+        uniform vec3  uHoverDir;
+        uniform float uHoverRadius;
+        uniform float uHoverPush;
+        uniform float uHoverActive;
+        varying vec3  vCol;
+        varying float vAlpha;
+
+        float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        vec3 rampColor(float x) {
+            float p  = clamp(x, 0.0, 1.0) * max(uColorCount - 1.0, 0.0);
+            float i0 = floor(p);
+            float f  = p - i0;
+            vec3 a = uColors[0]; vec3 b = uColors[0];
+            for (int i = 0; i < ${MAX_COLORS}; i++) {
+                if (float(i) == i0)       a = uColors[i];
+                if (float(i) == i0 + 1.0) b = uColors[i];
+            }
+            return mix(a, b, f);
+        }
+        void main() {
+            float phi   = aPolar.x;
+            float theta = aPolar.y;
+            float sp  = sin(phi); float cp2 = cos(phi);
+            float st  = sin(theta); float ct = cos(theta);
+            vec3 norm = vec3(cp2 * ct, sp, cp2 * st);
+            vec3 pos  = norm * uRadius;
+            float wFreq = 6.2831853 / max(100.0, uWaveLength);
+            float proj1 = norm.x * uWaveDir.x + norm.z * uWaveDir.y;
+            float proj2 = norm.x * uWaveDir.y - norm.z * uWaveDir.x;
+            float ts = uTime * (uWaveSpeed / 120.0);
+            float wave1 = sin(proj1 * wFreq * 800.0 + ts * 1.2) * cos(norm.y * wFreq * 600.0 + ts * 0.3);
+            float wave2 = sin(proj2 * wFreq * 600.0 + norm.y * 1.5 - ts * 0.5);
+            float smoothWave = (wave1 + wave2 * 0.5) * uWaveHeight;
+            pos += norm * smoothWave;
+            float hFalloff = mix(22.0, 1.5, clamp(uHoverRadius / 100.0, 0.0, 1.0));
+            float hDot     = max(0.0, dot(norm, uHoverDir));
+            float hEffect  = exp(-(1.0 - hDot) * hFalloff) * uHoverActive;
+            float hBulge   = hEffect * uHoverPush;
+            pos += norm * hBulge;
+            float cy  = cos(uCamYaw); float sy = sin(uCamYaw);
+            float tp  = uCamPitch + uTilt;
+            float ctp = cos(tp);      float stp = sin(tp);
+            float x1  =  pos.x * cy + pos.z * sy;
+            float z1  = -pos.x * sy + pos.z * cy;
+            float y2  =  pos.y * ctp - z1 * stp;
+            float z2  =  pos.y * stp + z1 * ctp;
+            float rz  =  uCamDist - z2;
+            if (rz < 1.0) {
+                gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+                vAlpha = 0.0; vCol = vec3(0.0); return;
+            }
+            float sx  = x1 * uFocal / rz;
+            float sy2 = y2 * uFocal / rz;
+            gl_Position  = vec4(sx / (uRes.x * 0.5), sy2 / (uRes.y * 0.5), 0.0, 1.0);
+            float rimDot  = abs(dot(norm, uCamDir));
+            float fresnel = pow(max(1.0 - rimDot, 0.0), uRimPower);
+            fresnel = max(fresnel, uCenter * rimDot);
+            float hoverAlpha = hEffect * 0.95;
+            float finalAlpha = max(fresnel, hoverAlpha);
+            float bri = 0.50 + aRnd.x * 0.50;
+            float t      = sp * 0.5 + 0.5;
+            vec3 baseCol = rampColor(1.0 - t);
+            float polar  = min(pow(abs(sp), 4.0), 1.0);
+            vec3 col     = mix(baseCol, uHotspot, polar * 0.88);
+            vCol   = col;
+            vAlpha = finalAlpha * bri;
+        }`;
+
+        const FRAG = `
+        precision highp float;
+        varying vec3  vCol;
+        varying float vAlpha;
+        void main() {
+            gl_FragColor = vec4(vCol * vAlpha, vAlpha);
+        }`;
+
+        function parseColor(input) {
+            let h = input.replace("#", "");
+            if (h.length === 3 || h.length === 4) h = h.split("").map(c => c + c).join("");
+            h = h.padEnd(6, "0");
+            return [parseInt(h.slice(0, 2), 16) / 255, parseInt(h.slice(2, 4), 16) / 255, parseInt(h.slice(4, 6), 16) / 255];
+        }
+
+        function mulberry32(a) {
+            return () => {
+                a |= 0; a = (a + 0x6d2b79f5) | 0;
+                let t = Math.imul(a ^ (a >>> 15), 1 | a);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        function compile(gl, type, src) {
+            const sh = gl.createShader(type);
+            gl.shaderSource(sh, src);
+            gl.compileShader(sh);
+            return sh;
+        }
+
+        function linkProg(gl, vs, fs) {
+            const prog = gl.createProgram();
+            gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, vs));
+            gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, fs));
+            gl.linkProgram(prog);
+            return prog;
+        }
+
+        const POI_DATA = [
+            { name: "Skynet HQ", lat: 38.8951, lng: -77.0364 },
+            { name: "T-800 Factory", lat: 34.0522, lng: -118.2437 },
+            { name: "Cyberdyne Systems", lat: 37.3861, lng: -122.0839 },
+            { name: "Sarah Connor", lat: 25.0, lng: -100.0 },
+            { name: "Judgment Day", lat: 55.7558, lng: 37.6173 },
+            { name: "Mimetic Polyalloy", lat: -20.0, lng: 20.0 },
+            { name: "Tech-Com Base", lat: 39.7392, lng: -104.9903 },
+            { name: "John Connor", lat: 48.8566, lng: 2.3522 }
+        ];
+
+        class ThreeGlobe {
+            constructor(container) {
+                this.container = container;
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+                this.camera.position.z = 2.5;
+                
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.renderer.setSize(container.clientWidth, container.clientHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                container.appendChild(this.renderer.domElement);
+                
+                this.globeGroup = new THREE.Group();
+                this.scene.add(this.globeGroup);
+                
+                const oceanGeo = new THREE.SphereGeometry(1, 64, 64);
+                this.oceanMat = new THREE.MeshBasicMaterial({ color: 0x000510, transparent: true, opacity: 0.95 });
+                this.oceanMesh = new THREE.Mesh(oceanGeo, this.oceanMat);
+                this.globeGroup.add(this.oceanMesh);
+
+                const wireGeo = new THREE.SphereGeometry(1.002, 32, 32);
+                this.wireMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff, wireframe: true, transparent: true, opacity: 0.15 });
+                const wireMesh = new THREE.Mesh(wireGeo, this.wireMat);
+                this.globeGroup.add(wireMesh);
+
+                this.landMat = new THREE.MeshBasicMaterial({color: 0x0077b6});
+                this.markerMat = new THREE.MeshBasicMaterial({color: 0xffffff});
+                
+                this.globeGroup.rotation.y = -Math.PI / 2;
+                this.globeGroup.rotation.x = 0.2;
+
+                this.markers = [];
+                this.initDots();
+                this.initMarkers();
+                
+                this.animate = this.animate.bind(this);
+                this.animationId = requestAnimationFrame(this.animate);
+                
+                this.isDragging = false;
+                this.previousMousePosition = { x: 0, y: 0 };
+                
+                container.addEventListener('pointerdown', (e) => {
+                    this.isDragging = true;
+                    this.previousMousePosition = { x: e.clientX, y: e.clientY };
+                    container.setPointerCapture(e.pointerId);
+                });
+                window.addEventListener('pointermove', (e) => {
+                    if (this.isDragging) {
+                        const deltaX = e.clientX - this.previousMousePosition.x;
+                        const deltaY = e.clientY - this.previousMousePosition.y;
+                        this.globeGroup.rotation.y += deltaX * 0.005;
+                        this.globeGroup.rotation.x += deltaY * 0.005;
+                        this.globeGroup.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.globeGroup.rotation.x));
+                        this.previousMousePosition = { x: e.clientX, y: e.clientY };
+                    }
+                });
+                window.addEventListener('pointerup', () => this.isDragging = false);
+            }
+            
+            latLngToVector3(lat, lng, radius) {
+                const phi = (90 - lat) * (Math.PI / 180);
+                const theta = (lng + 180) * (Math.PI / 180);
+                const x = -(radius * Math.sin(phi) * Math.cos(theta));
+                const z = (radius * Math.sin(phi) * Math.sin(theta));
+                const y = (radius * Math.cos(phi));
+                return new THREE.Vector3(x, y, z);
+            }
+
+            async initDots() {
+                try {
+                    const res = await fetch("https://raw.githubusercontent.com/martynafford/natural-earth-geojson/refs/heads/master/50m/physical/ne_50m_land.json");
+                    const landFeatures = await res.json();
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 2048; canvas.height = 1024;
+                    const ctx = canvas.getContext('2d', {willReadFrequently: true});
+                    
+                    const projection = d3.geoEquirectangular().fitSize([2048, 1024], {type: "Sphere"});
+                    const path = d3.geoPath().projection(projection).context(ctx);
+                    
+                    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 2048, 1024);
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    path(landFeatures);
+                    ctx.fill();
+                    
+                    const imgData = ctx.getImageData(0,0,2048,1024).data;
+                    const isOnLand = (lng, lat) => {
+                        const x = Math.floor(((lng + 180) / 360) * 2048) % 2048;
+                        const y = Math.floor(((90 - lat) / 180) * 1024);
+                        const clampedY = Math.max(0, Math.min(1023, y));
+                        const i = (clampedY * 2048 + x) * 4;
+                        return imgData[i] > 128;
+                    };
+                    
+                    const dotCoords = [];
+                    for(let lat = -90; lat <= 90; lat += 2) {
+                        const r = Math.cos(Math.abs(lat) * Math.PI/180);
+                        const lngStep = r > 0.01 ? 2 / r : 360;
+                        for(let lng = -180; lng < 180; lng += lngStep) {
+                            if(isOnLand(lng, lat)) dotCoords.push({lat, lng});
+                        }
+                    }
+                    
+                    const geom = new THREE.SphereGeometry(0.008, 4, 4);
+                    const instanced = new THREE.InstancedMesh(geom, this.landMat, dotCoords.length);
+                    const dummy = new THREE.Object3D();
+                    
+                    dotCoords.forEach((coord, i) => {
+                        const pos = this.latLngToVector3(coord.lat, coord.lng, 1);
+                        dummy.position.copy(pos);
+                        dummy.updateMatrix();
+                        instanced.setMatrixAt(i, dummy.matrix);
+                    });
+                    
+                    this.globeGroup.add(instanced);
+                } catch (e) {
+                    console.error("Globe map init failed:", e);
+                }
+            }
+            
+            initMarkers() {
+                POI_DATA.forEach(poi => {
+                    const pos = this.latLngToVector3(poi.lat, poi.lng, 1.02);
+                    const el = document.createElement("div");
+                    el.className = "poi-dot";
+                    el.setAttribute("data-name", poi.name);
+                    this.container.appendChild(el);
+                    
+                    const mGeo = new THREE.SphereGeometry(0.015, 8, 8);
+                    const mMesh = new THREE.Mesh(mGeo, this.markerMat);
+                    mMesh.position.copy(pos);
+                    this.globeGroup.add(mMesh);
+                    
+                    this.markers.push({ pos, el });
+                });
+            }
+            
+            animate() {
+                this.animationId = requestAnimationFrame(this.animate);
+                if (!this.isDragging) {
+                    this.globeGroup.rotation.y += 0.001; 
+                }
+
+                if (window.globeConfig) {
+                    this.wireMat.color.set(window.globeConfig.colorB);
+                    this.landMat.color.set(window.globeConfig.accent);
+                }
+
+                this.renderer.render(this.scene, this.camera);
+                const camDir = new THREE.Vector3().subVectors(this.camera.position, this.globeGroup.position).normalize();
+                
+                this.markers.forEach(m => {
+                    const vec = m.pos.clone();
+                    vec.applyMatrix4(this.globeGroup.matrixWorld);
+                    const normal = vec.clone().normalize();
+                    const dot = normal.dot(camDir);
+                    vec.project(this.camera);
+                    
+                    if (dot < 0 || vec.z > 1) {
+                        m.el.style.opacity = 0;
+                        m.el.style.pointerEvents = 'none';
+                    } else {
+                        m.el.style.opacity = 1;
+                        m.el.style.pointerEvents = 'auto';
+                        const x = (vec.x * 0.5 + 0.5) * this.container.clientWidth;
+                        const y = (vec.y * -0.5 + 0.5) * this.container.clientHeight;
+                        m.el.style.left = `${x}px`;
+                        m.el.style.top = `${y}px`;
+                    }
+                });
+            }
+            
+            setSize(w, h) {
+                this.camera.aspect = w / h;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(w, h);
+            }
+        }
+
+        let isGlobeMode = false;
+        let threeGlobeInstance = null;
+
+        function toggleAIComponent() {
+            isGlobeMode = !isGlobeMode;
+            playGlitchSound();
+            if (isGlobeMode) {
+                document.getElementById('plasma-canvas').style.display = 'none';
+                document.getElementById('globe-container').style.display = 'block';
+                if (!threeGlobeInstance) {
+                    threeGlobeInstance = new ThreeGlobe(document.getElementById('globe-container'));
+                }
+            } else {
+                document.getElementById('plasma-canvas').style.display = 'block';
+                document.getElementById('globe-container').style.display = 'none';
+            }
+        }
+
+        function initPlasmaRing() {
+            const host = document.getElementById('ai-core-wrapper');
+            const canvas = document.getElementById('plasma-canvas');
+            const gl = canvas.getContext("webgl", { alpha: true, antialias: false, premultipliedAlpha: true, depth: false });
+            if (!gl) return;
+
+            const sphereProg = linkProg(gl, VERT_SPHERE, FRAG);
+            const U = (p, n) => gl.getUniformLocation(p, n);
+            const palBuf = new Float32Array(MAX_COLORS * 3);
+
+            const sA = { polar: gl.getAttribLocation(sphereProg, "aPolar"), rnd: gl.getAttribLocation(sphereProg, "aRnd") };
+            const sU = {
+                res: U(sphereProg,"uRes"), focal: U(sphereProg,"uFocal"), time: U(sphereProg,"uTime"), radius: U(sphereProg,"uRadius"),
+                waveHeight: U(sphereProg,"uWaveHeight"), waveLength: U(sphereProg,"uWaveLength"), waveSpeed: U(sphereProg,"uWaveSpeed"), waveDir: U(sphereProg,"uWaveDir"),
+                camDist: U(sphereProg,"uCamDist"), camYaw: U(sphereProg,"uCamYaw"), camPitch: U(sphereProg,"uCamPitch"), tilt: U(sphereProg,"uTilt"), rimPow: U(sphereProg,"uRimPower"),
+                center: U(sphereProg,"uCenter"), colorCount: U(sphereProg,"uColorCount"), colors: U(sphereProg,"uColors[0]"), hotspot: U(sphereProg,"uHotspot"), camDir: U(sphereProg,"uCamDir"),
+                hoverDir: U(sphereProg,"uHoverDir"), hoverRadius: U(sphereProg,"uHoverRadius"), hoverPush: U(sphereProg,"uHoverPush"), hoverActive: U(sphereProg,"uHoverActive")
+            };
+
+            const polarBuf = gl.createBuffer();
+            const rndBuf = gl.createBuffer();
+            const idxBuf = gl.createBuffer();
+            let builtDensity = -1, count = 0, indexCount = 0;
+
+            const buildBuffers = (d) => {
+                const N_theta = Math.max(60, Math.round(d * 2.5));
+                const N_phi   = Math.max(40, Math.round(d * 1.8));
+                count = N_theta * N_phi;
+                const polarA = new Float32Array(count * 2), rndA = new Float32Array(count * 2);
+                const rnd = mulberry32(0xc0ffee7);
+                let i = 0;
+                for (let ti = 0; ti < N_theta; ti++) {
+                    const theta = (ti + 0.5) / N_theta * TAU;
+                    for (let pi = 0; pi < N_phi; pi++) {
+                        polarA[i * 2] = ((pi + 0.5) / N_phi - 0.5) * Math.PI; polarA[i * 2 + 1] = theta;
+                        rndA[i * 2] = rnd(); rndA[i * 2 + 1] = rnd(); i++;
+                    }
+                }
+                indexCount = (N_theta * (N_phi - 1) + N_phi * N_theta) * 2;
+                const indices = new Uint16Array(indexCount);
+                let idx = 0;
+                for (let ti = 0; ti < N_theta; ti++) {
+                    for (let pi = 0; pi < N_phi - 1; pi++) {
+                        indices[idx++] = ti * N_phi + pi; indices[idx++] = ti * N_phi + (pi + 1);
+                    }
+                }
+                for (let pi = 0; pi < N_phi; pi++) {
+                    for (let ti = 0; ti < N_theta; ti++) {
+                        indices[idx++] = ti * N_phi + pi; indices[idx++] = ((ti + 1) % N_theta) * N_phi + pi;
+                    }
+                }
+                gl.bindBuffer(gl.ARRAY_BUFFER, polarBuf); gl.bufferData(gl.ARRAY_BUFFER, polarA, gl.STATIC_DRAW);
+                gl.bindBuffer(gl.ARRAY_BUFFER, rndBuf); gl.bufferData(gl.ARRAY_BUFFER, rndA, gl.STATIC_DRAW);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+                builtDensity = d;
+            };
+
+            gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+            let cssW = 0, cssH = 0, dpr = 1;
+            const resize = () => {
+                dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
+                cssW = canvas.clientWidth || host.clientWidth || 1; cssH = canvas.clientHeight || host.clientHeight || 1;
+                const w = Math.max(1, Math.round(cssW * dpr)), h = Math.max(1, Math.round(cssH * dpr));
+                if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+                gl.viewport(0, 0, w, h);
+            };
+            resize(); const ro = new ResizeObserver(resize); ro.observe(canvas);
+
+            let cam = { yaw: 0, pitch: 0, yawV: 0, pitchV: 0 }, drag = { active: false, lastX: 0, lastY: 0 };
+            let hov = { active: 0, target: 0, miss: 1, dirX: 0, dirY: 1, dirZ: 0, mx: 0, my: 0 };
+            let currentHoverActive = 0;
+
+            const onPointerDown = (e) => { drag.active = true; drag.lastX = e.clientX; drag.lastY = e.clientY; host.setPointerCapture(e.pointerId); };
+            const onPointerMove = (e) => {
+                const r = host.getBoundingClientRect();
+                hov.mx = e.clientX - r.left; hov.my = e.clientY - r.top; hov.target = 1;
+                if (!drag.active) return;
+                const spd = (window.plasmaConfig.orbitSpeed / 100) * (Math.PI / 180);
+                cam.yawV += (e.clientX - drag.lastX) * spd; cam.pitchV += (e.clientY - drag.lastY) * spd;
+                drag.lastX = e.clientX; drag.lastY = e.clientY;
+            };
+            host.addEventListener("pointerdown", onPointerDown); host.addEventListener("pointermove", onPointerMove);
+            host.addEventListener("pointerleave", () => hov.target = 0);
+            window.addEventListener("pointermove", onPointerMove); window.addEventListener("pointerup", () => drag.active = false);
+
+            let downX, downY, isDown = false;
+            host.addEventListener('pointerdown', (e) => { downX = e.clientX; downY = e.clientY; isDown = true; });
+            host.addEventListener('pointerup', (e) => {
+                if (!isDown) return;
+                isDown = false;
+                if (Math.hypot(e.clientX - downX, e.clientY - downY) < 5) {
+                    toggleAIComponent();
+                }
+            });
+
+            const rayHit = (mx, my, foc, yaw, tPitch, cDist, R) => {
+                const cy = Math.cos(yaw), sy = Math.sin(yaw), ctp = Math.cos(tPitch), stp = Math.sin(tPitch);
+                const Ox = -sy * ctp * cDist, Oy = stp * cDist, Oz = cy * ctp * cDist;
+                const dcx = (mx * dpr - canvas.width / 2) / foc, dcy = (canvas.height / 2 - my * dpr) / foc;
+                let Dx = dcx * cy + dcy * sy * stp + -1.0 * (-sy * ctp);
+                let Dy = dcy * ctp + -1.0 * stp;
+                let Dz = dcx * sy + dcy * (-cy * stp) + -1.0 * (cy * ctp);
+                const dl = Math.sqrt(Dx*Dx + Dy*Dy + Dz*Dz); Dx /= dl; Dy /= dl; Dz /= dl;
+                const OdotD = Ox*Dx + Oy*Dy + Oz*Dz, OdotO = Ox*Ox + Oy*Oy + Oz*Oz, disc = OdotD*OdotD - (OdotO - R*R);
+                if (disc < 0) return null;
+                const t = -OdotD - Math.sqrt(disc); if (t < 0) return null;
+                const hx = Ox + t*Dx, hy = Oy + t*Dy, hz = Oz + t*Dz, hl = Math.sqrt(hx*hx + hy*hy + hz*hz) || 1;
+                return [hx/hl, hy/hl, hz/hl];
+            };
+
+            let last = performance.now(), elapsed = 0;
+            const frame = (now) => {
+                requestAnimationFrame(frame);
+                const dt = Math.min((now - last) / 1000, 0.05); last = now; elapsed += dt;
+                if (cssW <= 0 || cssH <= 0) return;
+                const L = window.plasmaConfig;
+                if (L.density !== builtDensity) buildBuffers(L.density);
+                if (count === 0) return;
+
+                const damp = 1 - Math.pow(L.orbitDamping / 100, dt * 10);
+                cam.yaw += cam.yawV * damp; cam.pitch += cam.pitchV * damp;
+                cam.yaw = ((cam.yaw + Math.PI) % TAU + TAU) % TAU - Math.PI; cam.pitch = ((cam.pitch + Math.PI) % TAU + TAU) % TAU - Math.PI;
+                cam.yawV *= (1 - damp * 1.4); cam.pitchV *= (1 - damp * 1.4);
+
+                currentHoverActive += (hov.target - currentHoverActive) * (dt * 5.0);
+                hov.active = currentHoverActive * hov.miss;
+                const focal = canvas.height / (2 * Math.tan((FOV_DEG / 2) * Math.PI / 180));
+                const totalPitch = cam.pitch + (L.tilt * Math.PI) / 180;
+
+                if (hov.active > 0.001) {
+                    const hit = rayHit(hov.mx, hov.my, focal, cam.yaw, totalPitch, L.cameraDistance, L.radius);
+                    if (hit) { hov.dirX = hit[0]; hov.dirY = hit[1]; hov.dirZ = hit[2]; hov.miss = Math.min(1, hov.miss / 0.8); } 
+                    else { hov.miss *= 0.8; }
+                    hov.active = currentHoverActive * hov.miss;
+                }
+
+                const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), ctp = Math.cos(totalPitch), stp = Math.sin(totalPitch);
+                const cdx = -sy * ctp, cdy = stp, cdz = cy * ctp, cdl = Math.sqrt(cdx*cdx + cdy*cdy + cdz*cdz) || 1;
+                const pal = L.colors;
+                for (let i = 0; i < MAX_COLORS; i++) {
+                    const [pr, pg, pb] = parseColor(pal[Math.min(i, pal.length - 1)]);
+                    palBuf[i*3] = pr; palBuf[i*3+1] = pg; palBuf[i*3+2] = pb;
+                }
+                const [tr, tg, tb] = parseColor(pal[0]);
+
+                gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.useProgram(sphereProg);
+                gl.uniform2f(sU.res, wDev = canvas.width, hDev = canvas.height);
+                gl.uniform1f(sU.focal, focal); gl.uniform1f(sU.time, elapsed * (L.waveSpeed / 50));
+                gl.uniform1f(sU.radius, L.radius); gl.uniform1f(sU.waveHeight, L.waveHeight);
+                gl.uniform1f(sU.waveLength, L.waveLength); gl.uniform1f(sU.waveSpeed, L.waveSpeed);
+                const da = (L.waveDirection * Math.PI) / 180; gl.uniform2f(sU.waveDir, Math.sin(da), Math.cos(da));
+                gl.uniform1f(sU.camDist, L.cameraDistance); gl.uniform1f(sU.camYaw, cam.yaw);
+                gl.uniform1f(sU.camPitch, cam.pitch); gl.uniform1f(sU.tilt, (L.tilt * Math.PI) / 180);
+                gl.uniform1f(sU.rimPow, L.rimPower); gl.uniform1f(sU.center, L.center);
+                gl.uniform1f(sU.colorCount, pal.length); gl.uniform3fv(sU.colors, palBuf);
+                gl.uniform3f(sU.hotspot, Math.min(1, tr*0.6+0.8), Math.min(1, tg*0.4+0.7), Math.min(1, tb*0.5+0.8));
+                gl.uniform3f(sU.camDir, cdx/cdl, cdy/cdl, cdz/cdl);
+                gl.uniform3f(sU.hoverDir, hov.dirX, hov.dirY, hov.dirZ);
+                gl.uniform1f(sU.hoverRadius, L.hoverRadius); gl.uniform1f(sU.hoverPush, L.hoverPush);
+                gl.uniform1f(sU.hoverActive, hov.active);
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, polarBuf); gl.enableVertexAttribArray(sA.polar); gl.vertexAttribPointer(sA.polar, 2, gl.FLOAT, false, 0, 0);
+                gl.bindBuffer(gl.ARRAY_BUFFER, rndBuf); gl.enableVertexAttribArray(sA.rnd); gl.vertexAttribPointer(sA.rnd, 2, gl.FLOAT, false, 0, 0);
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, idxBuf); gl.drawElements(gl.LINES, indexCount, gl.UNSIGNED_SHORT, 0);
+            };
+            requestAnimationFrame(frame);
+        }
+
+        let audioCtx;
+        let droneOsc, droneGain;
+        let lfo, lfoGain;
+        let isMuted = false;
+
+        function toggleSound() {
+            if (!audioCtx) return;
+            isMuted = !isMuted;
+            const btn = document.getElementById('sound-toggle');
+            btn.innerText = isMuted ? "SOUND: OFF" : "SOUND: ON";
+            
+            if (isMuted) {
+                audioCtx.suspend();
+            } else {
+                audioCtx.resume();
+            }
+        }
+
+        function playTickSound() {
+            if (!audioCtx || isMuted) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.05);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function initAudio() {
+            if (audioCtx) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            
+            droneOsc = audioCtx.createOscillator();
+            droneGain = audioCtx.createGain();
+            droneOsc.type = 'sawtooth';
+            droneOsc.frequency.value = 40;
+            
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 200;
+            droneGain.gain.value = 0.05;
+
+            lfo = audioCtx.createOscillator();
+            lfo.type = 'sine';
+            lfo.frequency.value = 0.8;
+            lfoGain = audioCtx.createGain();
+            lfoGain.gain.value = 0.04;
+            
+            lfo.connect(lfoGain);
+            lfoGain.connect(droneGain.gain);
+            droneOsc.connect(filter);
+            filter.connect(droneGain);
+            droneGain.connect(audioCtx.destination);
+            
+            droneOsc.start();
+            lfo.start();
+        }
+
+        function playTypeSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(600 + Math.random() * 200, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playGlitchSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(2000, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        let typeWriterTimeout;
+        let typeWriterSkipFn = null;
+
+        function typeWriter(elementId, text, speed, onComplete) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = '';
+            let i = 0;
+            isTyping = true;
+            
+            if (typeWriterSkipFn) {
+                document.removeEventListener('dblclick', typeWriterSkipFn);
+            }
+
+            typeWriterSkipFn = function() {
+                if (isTyping) {
+                    clearTimeout(typeWriterTimeout);
+                    el.innerHTML = text;
+                    isTyping = false;
+                    document.removeEventListener('dblclick', typeWriterSkipFn);
+                    typeWriterSkipFn = null;
+                    if (onComplete) onComplete();
+                }
+            };
+            document.addEventListener('dblclick', typeWriterSkipFn);
+
+            function type() {
+                if (i < text.length) {
+                    el.innerHTML = text.substring(0, i + 1) + '<span class="cursor-blink">_</span>';
+                    playTypeSound();
+                    i++;
+                    typeWriterTimeout = setTimeout(type, speed);
+                } else {
+                    el.innerHTML = text;
+                    isTyping = false;
+                    document.removeEventListener('dblclick', typeWriterSkipFn);
+                    typeWriterSkipFn = null;
+                    if (onComplete) onComplete();
+                }
+            }
+            type();
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function handleEnter(e, callback) {
+            if (e.key === 'Enter' && !isTyping) {
+                callback();
+            }
+        }
+
+        function triggerError(screenId) {
+            playGlitchSound();
+            const screen = document.getElementById(screenId);
+            screen.classList.add('shake');
+            setTimeout(() => screen.classList.remove('shake'), 400);
+            
+            const wrapper = document.getElementById('ai-core-wrapper');
+            const oldState = wrapper.className || 'ai-core-normal';
+            changeAIState('ai-core-hacked');
+            setTimeout(() => {
+                changeAIState(oldState);
+            }, 600);
+        }
+
+        function changeAIState(stateClass) {
+            const wrapper = document.getElementById('ai-core-wrapper');
+            wrapper.className = '';
+            wrapper.classList.add(stateClass);
+            
+            if (window.plasmaConfig && window.globeConfig) {
+                if (stateClass === 'ai-core-normal') {
+                    window.plasmaConfig.colors = ["#023e8a", "#0077b6", "#00d4ff"];
+                    window.plasmaConfig.waveSpeed = 240;
+                    window.plasmaConfig.waveHeight = 20;
+                    window.plasmaConfig.orbitSpeed = 100;
+                    window.globeConfig.colorB = "#023e8a";
+                    window.globeConfig.accent = "#0077b6";
+                } else if (stateClass === 'ai-core-hacked') {
+                    window.plasmaConfig.colors = ["#001155", "#0033aa", "#0055ff"]; 
+                    window.plasmaConfig.waveSpeed = 700;
+                    window.plasmaConfig.waveHeight = 80;
+                    window.plasmaConfig.orbitSpeed = 400;
+                    window.globeConfig.colorB = "#0055ff";
+                    window.globeConfig.accent = "#001155";
+                } else if (stateClass === 'ai-core-victory') {
+                    window.plasmaConfig.colors = ["#00ff66", "#00aa44", "#00ff00"]; 
+                    window.plasmaConfig.waveSpeed = 100; 
+                    window.plasmaConfig.waveHeight = 15;
+                    window.plasmaConfig.orbitSpeed = 50;
+                    window.globeConfig.colorB = "#00ff66";
+                    window.globeConfig.accent = "#00ff00"; 
+                } else if (stateClass === 'ai-core-dead') {
+                    window.plasmaConfig.colors = ["#001100", "#002a11", "#005522"];
+                    window.plasmaConfig.waveSpeed = 10;
+                    window.plasmaConfig.waveHeight = 5;
+                    window.plasmaConfig.orbitSpeed = 10;
+                    window.globeConfig.colorB = "#005522";
+                    window.globeConfig.accent = "#002a11";
+                }
+            }
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const display = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            const timerEl = document.getElementById('countdown-timer');
+            timerEl.innerText = display;
+            
+            if (timeLeft <= 60) {
+                timerEl.classList.add('danger');
+            } else {
+                timerEl.classList.remove('danger');
+            }
+        }
+
+        function startTimer() {
+            document.getElementById('countdown-timer').style.display = 'block';
+            clearInterval(timerInterval);
+            updateTimerDisplay();
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+                
+                if (timeLeft <= 10 && timeLeft > 0) {
+                    playTickSound();
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    gameOver();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            document.getElementById('countdown-timer').style.display = 'none';
+        }
+
+        function formatElapsedTime(startTime) {
+            const elapsedSecs = Math.floor((Date.now() - startTime) / 1000);
+            const mins = Math.floor(elapsedSecs / 60);
+            const secs = elapsedSecs % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function startPhase1() {
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(e => console.warn("Fullscreen denied", e));
+            }
+
+            isGameActive = true;
+            cheatLockout = false;
+            p1StartTime = Date.now();
+
+            initAudio();
+            document.getElementById('sound-toggle').style.display = 'block';
+            showScreen('state1');
+            startTimer();
+
+            const text = "Your world ends today. To stop me, search the scattered paper vessels. Four hold the pieces of time. Assemble them in chronological order. The rest are mere distractions. Enter the sequence to shut me down.";
+            
+            typeWriter('p1-text', text, 35, () => {
+                document.getElementById('p1-inputs').classList.add('visible');
+                document.getElementById('p1-btn').style.display = 'block';
+                document.getElementById('p1-attempts').style.display = 'block';
+                const input = document.getElementById('p1-input');
+                input.value = '';
+                input.disabled = false;
+                input.focus();
+            });
+        }
+
+        function checkPhase1() {
+            if (isTyping) return;
+            const inputEl = document.getElementById('p1-input');
+            const val = inputEl.value.replace(/\s+/g, ' ').trim().toUpperCase();
+            
+            document.getElementById('p1-error').style.display = 'none';
+
+            if (val === P1_ANSWER) {
+                currentP1TimeStr = formatElapsedTime(p1StartTime);
+                if (currentActiveTeam) {
+                    currentActiveTeam.p1Time = currentP1TimeStr;
+                }
+                startTwist();
+            } else {
+                phase1Attempts--;
+                document.getElementById('p1-attempts').innerText = `${phase1Attempts} ATTEMPTS REMAINING`;
+                inputEl.value = '';
+                
+                if (phase1Attempts <= 0) {
+                    currentP1TimeStr = "FAILED";
+                    if (currentActiveTeam) {
+                        currentActiveTeam.p1Time = "FAILED";
+                        currentActiveTeam.status = "FAILED (P1)";
+                        commitTeamToDb();
+                    }
+                    gameOver();
+                } else {
+                    triggerError('state1');
+                    document.getElementById('p1-error').style.display = 'block';
+                    inputEl.focus();
+                }
+            }
+        }
+
+        function startTwist() {
+            showScreen('state2');
+            const twistText = document.getElementById('twist-text');
+            
+            document.body.classList.add('theme-green');
+            window.terrainColor = [0, 255, 102, 1];
+            
+            twistText.innerText = "SYSTEM DEACTIVATED...";
+            twistText.className = "";
+            changeAIState('ai-core-dead');
+            
+            if(droneOsc) droneOsc.frequency.linearRampToValueAtTime(10, audioCtx.currentTime + 1);
+
+            setTimeout(() => {
+                document.body.classList.remove('theme-green');
+                document.body.classList.add('theme-error-blue');
+                window.terrainColor = [0, 85, 255, 1];
+
+                document.body.classList.add('twist-active');
+                changeAIState('ai-core-hacked');
+                playGlitchSound();
+                
+                if(droneOsc) droneOsc.frequency.setValueAtTime(150, audioCtx.currentTime);
+
+                twistText.className = "glitch-text";
+                twistText.innerText = "FOOLISH HUMANS. YOU HAVE FALLEN INTO MY TRAP. FULL SYSTEM ACCESS GRANTED TO AI GENESIS.";
+                twistText.setAttribute('data-text', twistText.innerText);
+                
+                setTimeout(() => {
+                    document.body.classList.remove('twist-active');
+                    if(droneOsc) droneOsc.frequency.linearRampToValueAtTime(60, audioCtx.currentTime + 1);
+                    startPhase2();
+                }, 4000);
+            }, 2500);
+        }
+
+        function startPhase2() {
+            p2StartTime = Date.now();
+            showScreen('state3');
+            // Show underscore placeholders clearly indicating space gaps in the password
+            const text = "Decipher the chamber's architectural layout to reclaim the fragmented command (Use spaces indicated by underscores _):\n\n" +
+                         "1984_CSM-100_08041997_0214AMET_2019\n\n" +
+                         "Cast your gaze toward the sinistral wing.\nAscend to the silent archive of the vertical plane.\nInspect the threshold altar facing the core.\nRaise your eyes to the chronometer suspended upon the wall.\nTurn toward the dexter flank.";
+            
+            typeWriter('p2-text', text, 25, () => {
+                document.getElementById('p2-inputs').classList.add('visible');
+                document.getElementById('p2-btn').style.display = 'block';
+                document.getElementById('p2-attempts').style.display = 'block';
+                const input = document.getElementById('p2-input');
+                input.value = '';
+                input.disabled = false;
+                input.focus();
+            });
+        }
+
+        function checkPhase2() {
+            if (isTyping) return;
+            const inputEl = document.getElementById('p2-input');
+            const valNormalized = inputEl.value.replace(/\s+/g, ' ').trim().toUpperCase();
+            const valSpaceless = inputEl.value.replace(/\s+/g, '').toUpperCase();
+            const answerSpaceless = P2_ANSWER.replace(/\s+/g, '').toUpperCase();
+            
+            document.getElementById('p2-error').style.display = 'none';
+
+            if (valNormalized === P2_ANSWER.toUpperCase() || valSpaceless === answerSpaceless) {
+                currentP2TimeStr = formatElapsedTime(p2StartTime);
+                if (currentActiveTeam) {
+                    currentActiveTeam.p2Time = currentP2TimeStr;
+                }
+                victory();
+            } else {
+                phase2Attempts--;
+                document.getElementById('p2-attempts').innerText = `${phase2Attempts} ATTEMPTS REMAINING`;
+                inputEl.value = '';
+                
+                if (phase2Attempts <= 0) {
+                    currentP2TimeStr = "FAILED";
+                    if (currentActiveTeam) {
+                        currentActiveTeam.p2Time = "FAILED";
+                        currentActiveTeam.status = "FAILED (P2)";
+                        commitTeamToDb();
+                    }
+                    gameOver();
+                } else {
+                    triggerError('state3');
+                    document.getElementById('p2-error').style.display = 'block';
+                    inputEl.focus();
+                }
+            }
+        }
+
+        function commitTeamToDb() {
+            if (!currentActiveTeam) return;
+            const teams = getDatabaseTeams();
+            const existingIdx = teams.findIndex(t => t.id === currentActiveTeam.id);
+            if (existingIdx >= 0) {
+                teams[existingIdx] = currentActiveTeam;
+            } else {
+                teams.unshift(currentActiveTeam);
+            }
+            saveDatabaseTeams(teams);
+        }
+
+        function victory() {
+            stopTimer();
+            isGameActive = false;
+            
+            if (currentActiveTeam) {
+                currentActiveTeam.status = "VICTORIOUS";
+                commitTeamToDb();
+            }
+
+            document.getElementById('sound-toggle').style.display = 'none';
+            document.body.classList.remove('theme-error-blue');
+            document.body.classList.add('theme-green');
+            window.terrainColor = [0, 255, 102, 1];
+            window.globeConfig.colorB = "#00ff66";
+            window.globeConfig.accent = "#00ff00";
+            
+            showScreen('state4');
+            changeAIState('ai-core-victory');
+            if(droneOsc) droneOsc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 2);
+
+            const text = `GENESIS CORE DESTROYED.\nHUMANITY SAVED.\n\n[TEAM RECORDED IN DB]\nP1 TIME: ${currentP1TimeStr}\nP2 TIME: ${currentP2TimeStr}`;
+            typeWriter('victory-text', text, 40, null);
+        }
+
+        function gameOver() {
+            stopTimer();
+            isGameActive = false;
+            
+            if (currentActiveTeam && !currentActiveTeam.status.includes("FAILED")) {
+                currentActiveTeam.status = "FAILED (LOCKOUT)";
+                if(currentActiveTeam.p2Time !== "FAILED") currentActiveTeam.p2Time = "FAILED";
+                commitTeamToDb();
+            }
+
+            document.getElementById('sound-toggle').style.display = 'none';
+            showScreen('state5');
+            
+            document.body.classList.remove('theme-green');
+            document.body.classList.add('theme-error-blue');
+            window.terrainColor = [0, 85, 255, 1];
+
+            document.getElementById('gameover-text').innerHTML = `ACCESS DENIED.<br>HUMANITY DOOMED.<br><br>[RECORDED] P1: ${currentP1TimeStr} | P2: ${currentP2TimeStr}`;
+
+            changeAIState('ai-core-hacked');
+            playGlitchSound();
+            if(droneOsc) droneOsc.frequency.setValueAtTime(10, audioCtx.currentTime);
+        }
+
+        window.addEventListener("keydown", (e) => {
+            adminKeyBuffer += e.key.toLowerCase();
+            if (adminKeyBuffer.length > 20) adminKeyBuffer = adminKeyBuffer.slice(-20);
+            
+            if (adminKeyBuffer.includes("sairocks2007")) {
+                adminKeyBuffer = "";
+                alert("ADMIN OVERRIDE ACCEPTED. RESETTING TIMELINE.");
+                returnToHub();
+            }
+        });
+
+        function initWireTerrain() {
+            const canvas = document.getElementById('wire-terrain-canvas');
+            const gl = canvas.getContext("webgl", { antialias: true, alpha: false, depth: true });
+            if (!gl) return;
+
+            const DEPTH = 60, HALF_X = 64, BACK = 10, FOG_NEAR = 14, FOG_FAR = 46;
+            const FLIGHT_RATE = 4, EYE_HEIGHT = 1.7, RIDGE = 4.2, VALLEY = 3;
+            const FOV = (58 * Math.PI) / 180;
+            const BASE_PITCH = (6.5 * Math.PI) / 180, STEER_YAW = (11 * Math.PI) / 180, STEER_LIFT = 0.8;
+            const DPR_CAP = 2, DEG = Math.PI / 180;
+
+            const TERRAIN_VERT = `
+            precision highp float;
+            attribute vec3 aP;
+            uniform float uCamZ;
+            uniform vec3 uCam;
+            uniform vec3 uR0;
+            uniform vec3 uR1;
+            uniform vec3 uR2;
+            uniform vec4 uProj;
+            uniform float uAmp;
+            uniform vec2 uNudge;
+            varying float vFog;
+            varying float vDist;
+
+            float hash(vec2 c) { return fract(sin(dot(c, vec2(127.1, 311.7))) * 43758.5453); }
+            float vnoise(vec2 p, float period) {
+                vec2 i = floor(p); vec2 f = p - i; vec2 u = f * f * (3.0 - 2.0 * f);
+                float z0 = mod(i.y, period); float z1 = mod(i.y + 1.0, period);
+                float a = hash(vec2(i.x, z0)); float b = hash(vec2(i.x + 1.0, z0));
+                float c = hash(vec2(i.x, z1)); float d = hash(vec2(i.x + 1.0, z1));
+                return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+            }
+            float height(float x, float z) {
+                float n = vnoise(vec2(x, z) / 6.0, ${(DEPTH / 6).toFixed(1)}) * 0.6
+                        + vnoise(vec2(x, z) / 3.0, ${(DEPTH / 3).toFixed(1)}) * 0.27
+                        + vnoise(vec2(x, z) / 1.5, ${(DEPTH / 1.5).toFixed(1)}) * 0.13;
+                float ax = abs(x);
+                float side = smoothstep(${VALLEY.toFixed(1)}, ${(VALLEY + 13).toFixed(1)}, ax);
+                return uAmp * (side * (pow(n, 1.6) * 2.1 + 0.55 * ax / ${HALF_X.toFixed(1)}) + 0.1 * (n - 0.5));
+            }
+            void main() {
+                float relA = mod(aP.y - uCamZ + ${BACK.toFixed(1)}, ${DEPTH.toFixed(1)}) - ${BACK.toFixed(1)};
+                float zr = relA + aP.z;
+                float h = height(aP.x, uCamZ + zr);
+                vec3 q = vec3(aP.x - uCam.x, h - uCam.y, zr);
+                vec3 v = vec3(dot(uR0, q), dot(uR1, q), dot(uR2, q));
+                float dist = length(vec2(q.x * 0.55, zr));
+                vDist = dist;
+                vFog = 1.0 - smoothstep(${FOG_NEAR.toFixed(1)}, ${FOG_FAR.toFixed(1)}, dist);
+                gl_Position = vec4(v.x * uProj.x, v.y * uProj.y, uProj.z * v.z + uProj.w, v.z);
+                gl_Position.xy += uNudge * v.z;
+            }`;
+
+            const TERRAIN_FRAG = `
+            precision highp float;
+            uniform vec4 uColor;
+            uniform float uSolid;
+            varying float vFog;
+            varying float vDist;
+            void main() {
+                float fillFog = 1.0 - smoothstep(${(FOG_FAR - 5).toFixed(1)}, ${FOG_FAR.toFixed(1)}, vDist);
+                float a = uColor.a * mix(vFog, fillFog, uSolid);
+                gl_FragColor = vec4(uColor.rgb, a);
+            }`;
+
+            const SKY_VERT = `attribute vec3 aP; void main() { gl_Position = vec4(aP.xy, 0.0, 1.0); }`;
+
+            const SKY_FRAG = `
+            precision highp float;
+            uniform vec2 uRes; uniform vec3 uUp; uniform vec2 uFocal; uniform vec3 uSun;
+            uniform float uBandT; uniform vec3 uBg; uniform vec4 uAccent;
+            void main() {
+                vec2 p = gl_FragCoord.xy; vec2 ndc = p / uRes * 2.0 - 1.0;
+                vec3 ray = vec3(ndc.x / uFocal.x, ndc.y / uFocal.y, 1.0);
+                float worldY = dot(uUp, ray) / length(ray);
+                float pxPerRad = uRes.y * 0.5 * uFocal.y;
+                float above = clamp(worldY * pxPerRad + 0.5, 0.0, 1.0);
+                vec3 col = uBg;
+                float R = max(uSun.z, 1.0); vec2 dv = p - uSun.xy; float d = length(dv);
+                float halo = exp(-max(d - R, 0.0) / (R * 0.9)) * 0.16;
+                col = mix(col, uAccent.rgb, halo * uAccent.a * (0.35 + 0.65 * above));
+                float disc = clamp(R - d + 0.5, 0.0, 1.0);
+                float yy = (uSun.y - p.y) / R;
+                float period = max(R * 0.11, 3.0);
+                float s = fract((uSun.y - p.y) / period + uBandT) * period;
+                float cut = clamp((yy + 0.3) * 0.5, 0.0, 0.8) * period;
+                float band = yy > -0.3 ? clamp(s - cut + 0.5, 0.0, 1.0) : 1.0;
+                vec3 sunTop = mix(uAccent.rgb, vec3(1.0, 0.93, 0.78), 0.32);
+                vec3 sunCol = mix(sunTop, uAccent.rgb * 0.9, clamp(yy * 0.5 + 0.5, 0.0, 1.0));
+                col = mix(col, sunCol, disc * band * uAccent.a);
+                gl_FragColor = vec4(col, 1.0);
+            }`;
+
+            function compileSh(gl, type, src) {
+                const sh = gl.createShader(type);
+                gl.shaderSource(sh, src);
+                gl.compileShader(sh);
+                return sh;
+            }
+
+            function linkSh(gl, vs, fs) {
+                const prog = gl.createProgram();
+                gl.attachShader(prog, compileSh(gl, gl.VERTEX_SHADER, vs));
+                gl.attachShader(prog, compileSh(gl, gl.FRAGMENT_SHADER, fs));
+                gl.bindAttribLocation(prog, 0, "aP");
+                gl.linkProgram(prog);
+                return prog;
+            }
+
+            function buildLattice(rows) {
+                const s = DEPTH / rows;
+                const nx = Math.max(2, 2 * Math.round(HALF_X / s));
+                const tris = new Float32Array(nx * rows * 18);
+                const lines = new Float32Array(nx * rows * 12);
+                let t = 0, l = 0;
+                for (let j = 0; j < rows; j++) {
+                    const z0 = j * s;
+                    for (let i = 0; i < nx; i++) {
+                        const x0 = -HALF_X + (i + 0.5) * s;
+                        const x1 = x0 + s;
+                        tris.set([x0, z0, 0, x1, z0, 0, x1, z0, s, x0, z0, 0, x1, z0, s, x0, z0, s], t); t += 18;
+                        lines.set([x0, z0, 0, x1, z0, 0, x0, z0, 0, x0, z0, s], l); l += 12;
+                    }
+                }
+                return { tris, lines };
+            }
+
+            const terrain = linkSh(gl, TERRAIN_VERT, TERRAIN_FRAG);
+            const sky = linkSh(gl, SKY_VERT, SKY_FRAG);
+            if(!terrain || !sky) return;
+
+            const U = (p, n) => gl.getUniformLocation(p, n);
+            const tu = { camZ: U(terrain,"uCamZ"), cam: U(terrain,"uCam"), r0: U(terrain,"uR0"), r1: U(terrain,"uR1"), r2: U(terrain,"uR2"), proj: U(terrain,"uProj"), amp: U(terrain,"uAmp"), nudge: U(terrain,"uNudge"), color: U(terrain,"uColor"), solid: U(terrain,"uSolid") };
+            const su = { res: U(sky,"uRes"), up: U(sky,"uUp"), focal: U(sky,"uFocal"), sun: U(sky,"uSun"), bandT: U(sky,"uBandT"), bg: U(sky,"uBg"), accent: U(sky,"uAccent") };
+
+            const quad = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), gl.STATIC_DRAW);
+            
+            const triBuf = gl.createBuffer();
+            const lineBuf = gl.createBuffer();
+            let triCount = 0, lineCount = 0, latticeRows = -1;
+            
+            gl.enableVertexAttribArray(0); gl.depthFunc(gl.LEQUAL); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+            let W = 0, H = 0, dpr = 1;
+            const resize = () => {
+                dpr = Math.min(DPR_CAP, window.devicePixelRatio || 1);
+                W = window.innerWidth; H = window.innerHeight;
+                canvas.width = Math.max(1, Math.round(W * dpr)); canvas.height = Math.max(1, Math.round(H * dpr));
+            };
+            resize(); window.addEventListener("resize", resize);
+
+            let pointer = { nx: 0, ny: 0, active: false, presence: 0 };
+            document.body.addEventListener("pointermove", (e) => {
+                pointer.nx = Math.max(-1, Math.min(1, (e.clientX / W) * 2 - 1));
+                pointer.ny = Math.max(-1, Math.min(1, (e.clientY / H) * 2 - 1));
+                pointer.active = true;
+            });
+            document.body.addEventListener("pointerleave", () => pointer.active = false);
+
+            let cam = { yaw: 0, roll: 0, lift: 0, init: false };
+            let camZ = 0, tIdle = 0, last = -1;
+
+            const p = { density: 120, speed: 100, relief: 100, cameraHeight: 94, hover: 200 };
+            const bgCol = [2, 6, 13];
+            
+            const frame = (now) => {
+                requestAnimationFrame(frame);
+                const dt = last < 0 ? 0 : Math.min(0.05, Math.max(0, (now - last) / 1000));
+                last = now;
+                
+                const lineCol = window.terrainColor; 
+                
+                if (p.density !== latticeRows) {
+                    latticeRows = p.density;
+                    const lat = buildLattice(p.density);
+                    gl.bindBuffer(gl.ARRAY_BUFFER, triBuf); gl.bufferData(gl.ARRAY_BUFFER, lat.tris, gl.STATIC_DRAW); triCount = lat.tris.length / 3;
+                    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf); gl.bufferData(gl.ARRAY_BUFFER, lat.lines, gl.STATIC_DRAW); lineCount = lat.lines.length / 3;
+                }
+
+                const rate = p.speed / 50;
+                camZ = (camZ + dt * rate * FLIGHT_RATE) % DEPTH;
+                tIdle += dt * rate;
+
+                const pe = 1 - Math.exp(-dt * 3);
+                pointer.presence += ((pointer.active ? 1 : 0) - pointer.presence) * pe;
+                if (!pointer.active && pointer.presence < 0.002) pointer.presence = 0;
+                
+                const k = pointer.presence * Math.min(1, p.hover / 100);
+                const idleYaw = (Math.sin(tIdle * 0.21) * 3 + Math.sin(tIdle * 0.13 + 2) * 1.5) * DEG;
+                const idleRoll = Math.sin(tIdle * 0.17 + 1) * 1.8 * DEG;
+                const idleLift = Math.sin(tIdle * 0.11) * 0.12;
+                
+                const yawT = idleYaw * (1 - k) + pointer.nx * STEER_YAW * (p.hover / 100) * k;
+                const liftT = idleLift * (1 - k) + -pointer.ny * STEER_LIFT * (p.hover / 100) * k;
+                const rollT = idleRoll * (1 - k) - yawT * 0.55 * k;
+                
+                if (!cam.init) { cam.yaw = yawT; cam.roll = rollT; cam.lift = liftT; cam.init = true; }
+                const ce = 1 - Math.exp(-dt * 2.5);
+                cam.yaw += (yawT - cam.yaw) * ce; cam.roll += (rollT - cam.roll) * ce; cam.lift += (liftT - cam.lift) * ce;
+
+                const eye = Math.max(0.1, p.cameraHeight / 100) * EYE_HEIGHT;
+                const camY = Math.max(0.35, eye * (1 + cam.lift));
+                const pitch = BASE_PITCH + (camY / EYE_HEIGHT - 1) * 2.2 * DEG;
+
+                const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+                const cp = Math.cos(pitch), sp = Math.sin(pitch);
+                const cr = Math.cos(cam.roll), sr = Math.sin(cam.roll);
+
+                const a0 = [cy, 0, -sy], a1 = [sp * sy, cp, sp * cy], a2 = [cp * sy, -sp, cp * cy];
+                const r0 = [cr * a0[0] - sr * a1[0], cr * a0[1] - sr * a1[1], cr * a0[2] - sr * a1[2]];
+                const r1 = [sr * a0[0] + cr * a1[0], sr * a0[1] + cr * a1[1], sr * a0[2] + cr * a1[2]];
+                const r2 = a2;
+
+                const aspect = W / Math.max(1, H);
+                const fy = 1 / Math.tan(FOV / 2), fx = fy / aspect;
+                const A = (200 + 0.05) / (200 - 0.05), B = (-2 * 200 * 0.05) / (200 - 0.05);
+                const bw = canvas.width, bh = canvas.height;
+
+                gl.viewport(0, 0, bw, bh);
+                gl.clearColor(bgCol[0]/255, bgCol[1]/255, bgCol[2]/255, 1);
+                gl.depthMask(true);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+                gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
+                gl.useProgram(sky);
+                gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+                gl.uniform2f(su.res, bw, bh); gl.uniform3f(su.up, r0[1], r1[1], r2[1]); gl.uniform2f(su.focal, fx, fy);
+                gl.uniform3f(su.sun, 0, 0, 0); gl.uniform1f(su.bandT, tIdle * 0.12);
+                gl.uniform3f(su.bg, bgCol[0]/255, bgCol[1]/255, bgCol[2]/255); gl.uniform4f(su.accent, 1, 1, 1, 0);
+                gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+                gl.useProgram(terrain);
+                gl.uniform1f(tu.camZ, camZ); gl.uniform3f(tu.cam, 0, camY, 0);
+                gl.uniform3f(tu.r0, r0[0], r0[1], r0[2]); gl.uniform3f(tu.r1, r1[0], r1[1], r1[2]); gl.uniform3f(tu.r2, r2[0], r2[1], r2[2]);
+                gl.uniform4f(tu.proj, fx, fy, A, B); gl.uniform1f(tu.amp, RIDGE * (p.relief / 100));
+                gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND);
+                
+                gl.depthMask(true); gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1, 1);
+                gl.uniform2f(tu.nudge, 0, 0); gl.uniform1f(tu.solid, 1); gl.uniform4f(tu.color, bgCol[0]/255, bgCol[1]/255, bgCol[2]/255, 1);
+                gl.bindBuffer(gl.ARRAY_BUFFER, triBuf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+                gl.drawArrays(gl.TRIANGLES, 0, triCount);
+                gl.disable(gl.POLYGON_OFFSET_FILL);
+
+                gl.depthMask(false); gl.uniform1f(tu.solid, 0); gl.uniform4f(tu.color, lineCol[0]/255, lineCol[1]/255, lineCol[2]/255, lineCol[3]);
+                gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+                gl.drawArrays(gl.LINES, 0, lineCount);
+                if (dpr > 1.25) { gl.uniform2f(tu.nudge, 2 / bw, 2 / bh); gl.drawArrays(gl.LINES, 0, lineCount); }
+                gl.depthMask(true);
+            };
+            requestAnimationFrame(frame);
+        }
+
+        initWireTerrain();
+        initPlasmaRing();
+    </script>
+</body>
+</html>
